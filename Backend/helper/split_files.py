@@ -4,6 +4,7 @@ from typing import Optional, Tuple
 _VIDEO_EXTENSIONS = r'mkv|mp4|avi|ts|m4v|mov|wmv|webm|flv'
 _TRAILING_NUMERIC_PATTERN = re.compile(rf'(?i)\.({_VIDEO_EXTENSIONS})\.(\d{{2,3}})$')
 _NUMERIC_PATTERN = re.compile(r'(?i)[\.\-_](\d{2,3})(?=[\.\-_][a-z0-9]{2,4}$)')
+_PART_PATTERN = re.compile(r'(?i)[\.\-_]?(?:part|cd|disc|disk)[\.\-_]*(\d{1,3})(?=[\.\-_][a-z0-9]{2,4}$)')
 _NORMALIZE_RE = re.compile(r'[\.\-_ ]+')
 
 
@@ -15,6 +16,12 @@ def _find_split_match(name: str) -> Optional[Tuple[int, int, int, Optional[str]]
     m = _TRAILING_NUMERIC_PATTERN.search(name)
     if m:
         return m.start(), m.end(), int(m.group(2)), m.group(1)
+
+    m = _PART_PATTERN.search(name)
+    if m:
+        part_num = int(m.group(1))
+        if 1 <= part_num <= 999:
+            return m.start(), m.end(), part_num, None
 
     m = _NUMERIC_PATTERN.search(name)
     if m:
