@@ -430,7 +430,11 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
         return None
 
 
-    # Let split files be processed normally so they can be grouped in Stremio
+    # Skip split files that are not supported 
+    multipart_pattern = compile(r'(?:part|cd|disc|disk)[s._-]*\d+(?=\.\w+$)', IGNORECASE)
+    if multipart_pattern.search(filename):
+        LOGGER.info(f"Skipping {filename}: seems to be a split video file that is not supposed to combine in stremio use .mkv.001, .mkv.002 split files")
+        return None
 
     
     # Skip combined/invalid files
