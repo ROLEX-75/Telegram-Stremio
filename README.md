@@ -55,19 +55,6 @@ Copy `sample_config.env` to `config.env` and fill in the required variables:
 5. Set `PORT=7860` (HF Spaces exposes port 7860 by default).
 6. The Space will build and start automatically.
 
-### 🐳 VPS / Docker Compose
-
-```bash
-git clone https://github.com/weebzone/Telegram-Stremio
-cd Telegram-Stremio
-cp sample_config.env config.env
-nano config.env          # fill in your values
-docker compose up -d
-```
-
-Your server will be running at `http://<your-vps-ip>:8000`.  
-Point a domain at your VPS and use a reverse proxy (Caddy / Nginx) for HTTPS.
-
 ---
 
 ## 📺 Adding the Addon to Stremio
@@ -79,12 +66,3 @@ Point a domain at your VPS and use a reverse proxy (Caddy / Nginx) for HTTPS.
 ```
 https://<your-domain>/stremio/<token>/manifest.json
 ```
-
----
-
-## 🏅 Contributor
-
-| <img width="80" src="https://avatars.githubusercontent.com/u/113664541"> |
-|:---:|
-| [`Karan`](https://github.com/Weebzone) |
-| Author |
