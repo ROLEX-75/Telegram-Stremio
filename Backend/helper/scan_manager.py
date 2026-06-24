@@ -471,6 +471,7 @@ class ScanManager:
                 size=size,
                 name=title_clean,
                 raw_size=raw_size,
+                message_date=msg.date
             )
             if updated_id:
                 s["counters"]["indexed"] += 1

@@ -33,9 +33,9 @@ def _is_supported_media(message: Message) -> bool:
 
 async def process_file():
     while True:
-        metadata_info, channel, msg_id, size, raw_size, title = await file_queue.get()
+        metadata_info, channel, msg_id, size, raw_size, title, msg_date = await file_queue.get()
         async with db_lock:
-            updated_id = await db.insert_media(metadata_info, channel=channel, msg_id=msg_id, size=size, raw_size=raw_size, name=title)
+            updated_id = await db.insert_media(metadata_info, channel=channel, msg_id=msg_id, size=size, raw_size=raw_size, name=title, message_date=msg_date)
             if updated_id:
                 LOGGER.info(f"{metadata_info['media_type']} updated with ID: {updated_id}")
             else:
@@ -77,7 +77,7 @@ async def file_receive_handler(client: Client, message: Message):
                         new_caption=new_caption
                     ))
 
-                await file_queue.put((metadata_info, int(channel), msg_id, size, raw_size, title))
+                await file_queue.put((metadata_info, int(channel), msg_id, size, raw_size, title, message.date))
             else:
                 await message.reply_text("> Not supported")
         except FloodWait as e:
@@ -122,7 +122,7 @@ async def file_edited_handler(client: Client, message: Message):
                     if not title.endswith(('.mkv', '.mp4')):
                         title += '.mkv'
 
-                    await file_queue.put((metadata_info, int(channel), msg_id, size, raw_size, title))
+                    await file_queue.put((metadata_info, int(channel), msg_id, size, raw_size, title, message.date))
             else:
                 pass
         except Exception as e:

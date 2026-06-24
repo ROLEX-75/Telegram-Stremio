@@ -567,11 +567,18 @@ class Database:
     # -------------------------------
     # Helper Methods for Repeated Logic
     # -------------------------------
-    def _get_sort_dict(self, sort_params: List[Tuple[str, str]]) -> Dict[str, int]:
+    def _get_sort_dict(self, sort_params: List[Tuple[str, str]]) -> List[Tuple[str, int]]:
+        sort_list = []
         if sort_params:
             sort_field, sort_direction = sort_params[0]
-            return {sort_field: DESCENDING if sort_direction.lower() == "desc" else ASCENDING}
-        return {"updated_on": DESCENDING}
+            sort_list.append((sort_field, DESCENDING if sort_direction.lower() == "desc" else ASCENDING))
+        else:
+            sort_list.append(("updated_on", DESCENDING))
+            
+        if sort_list[0][0] != "_id":
+            sort_list.append(("_id", DESCENDING))
+            
+        return sort_list
 
     async def _paginate_collection(
         self,
@@ -736,7 +743,7 @@ class Database:
 
     async def insert_media(
         self, metadata_info: dict,
-        channel: int, msg_id: int, size: str, name: str, raw_size: int = 0
+        channel: int, msg_id: int, size: str, name: str, raw_size: int = 0, message_date: Optional[datetime] = None
     ) -> Optional[ObjectId]:
 
         group_key = metadata_info.get("group_key")
@@ -782,9 +789,10 @@ class Database:
                 cast=metadata_info['cast'],
                 runtime=metadata_info['runtime'],
                 media_type=metadata_info['media_type'],
+                updated_on=message_date or datetime.utcnow(),
                 telegram=[quality_detail]
             )
-            return await self.update_movie(media)
+            return await self.update_movie(media, message_date)
         else:
             tv_show = TVShowSchema(
                 tmdb_id=metadata_info['tmdb_id'],
@@ -801,6 +809,7 @@ class Database:
                 cast=metadata_info['cast'],
                 runtime=metadata_info['runtime'],
                 media_type=metadata_info['media_type'],
+                updated_on=message_date or datetime.utcnow(),
                 seasons=[Season(
                     season_number=metadata_info['season_number'],
                     episodes=[Episode(
@@ -813,7 +822,7 @@ class Database:
                     )]
                 )]
             )
-            return await self.update_tv_show(tv_show)
+            return await self.update_tv_show(tv_show, message_date)
 
     async def _merge_split_part(self, qualities: List[dict], quality_to_update: dict) -> List[dict]:
         group_key = quality_to_update.get("group_key")
@@ -907,7 +916,7 @@ class Database:
         existing_qualities.append(quality_to_update)
         return existing_qualities
 
-    async def update_movie(self, movie_data: MovieSchema) -> Optional[ObjectId]:
+    async def update_movie(self, movie_data: MovieSchema, message_date: Optional[datetime] = None) -> Optional[ObjectId]:
         try:
             movie_dict = movie_data.dict()
         except ValidationError as e:
@@ -967,7 +976,7 @@ class Database:
         existing_qualities = await self._apply_quality_update(existing_qualities, quality_to_update)
 
         existing_movie["telegram"] = existing_qualities
-        existing_movie["updated_on"] = datetime.utcnow()
+        existing_movie["updated_on"] = message_date or datetime.utcnow()
 
         if existing_db_index != self.current_db_index:
             try:
@@ -986,7 +995,7 @@ class Database:
             if any(keyword in str(e).lower() for keyword in ["storage", "quota"]):
                 return await self._handle_storage_error(self.update_movie, movie_data, total_storage_dbs=total_storage_dbs)
 
-    async def update_tv_show(self, tv_show_data: TVShowSchema) -> Optional[ObjectId]:
+    async def update_tv_show(self, tv_show_data: TVShowSchema, message_date: Optional[datetime] = None) -> Optional[ObjectId]:
         try:
             tv_show_dict = tv_show_data.dict()
         except ValidationError as e:
@@ -1069,7 +1078,7 @@ class Database:
                         existing_episode["telegram"], quality
                     )
 
-        existing_tv["updated_on"] = datetime.utcnow()
+        existing_tv["updated_on"] = message_date or datetime.utcnow()
 
         # ---------------- MOVE DB IF NEEDED ----------------
         if existing_db_index != self.current_db_index:
