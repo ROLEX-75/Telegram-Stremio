@@ -511,9 +511,7 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
         return None
 
     excess = parsed.get("excess")
-    if excess and any("combined" in item.lower() for item in excess):
-        LOGGER.info(f"Skipping {filename}: contains 'combined'")
-        return None
+    # 'combined' check removed to allow combined episode files to be parsed
 
     split_info = parse_split_info(filename)
     part_number = split_info[1] if split_info else None
@@ -524,9 +522,6 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
     year = parsed.get("year")
     quality = parsed.get("quality")
 
-    if isinstance(season, list) or isinstance(episode, list):
-        LOGGER.warning(f"Invalid season/episode format for {filename}: {parsed}")
-        return None
     if season and not episode:
         LOGGER.warning(f"Missing episode in {filename}: {parsed}")
         return None
@@ -548,15 +543,26 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
 
     try:
         if season and episode:
-            LOGGER.info(f"Fetching TV metadata: {title} S{season:02d}E{episode:02d} (year={year})")
-            result = await fetch_tv_metadata(title, season, episode, encoded_string, year, quality, default_id)
+            seasons = season if isinstance(season, list) else [season]
+            episodes = episode if isinstance(episode, list) else [episode]
+
+            results = []
+            for s in seasons:
+                for ep in episodes:
+                    LOGGER.info(f"Fetching TV metadata: {title} S{s:02d}E{ep:02d} (year={year})")
+                    res = await fetch_tv_metadata(title, s, ep, encoded_string, year, quality, default_id)
+                    if res is not None:
+                        res["group_key"] = group_key
+                        res["part_number"] = part_number
+                        results.append(res)
+            return results if results else None
         else:
             LOGGER.info(f"Fetching Movie metadata: {title} (year={year})")
             result = await fetch_movie_metadata(title, encoded_string, year, quality, default_id)
-        if result is not None:
-            result["group_key"] = group_key
-            result["part_number"] = part_number
-        return result
+            if result is not None:
+                result["group_key"] = group_key
+                result["part_number"] = part_number
+            return result
     except Exception as e:
         LOGGER.error(f"Error while fetching metadata for {filename}: {e}\n{traceback.format_exc()}")
         return None

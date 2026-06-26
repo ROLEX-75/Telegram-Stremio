@@ -58,13 +58,15 @@ async def file_receive_handler(client: Client, message: Message):
                 size = get_readable_file_size(file.file_size)
                 channel = str(message.chat.id).replace("-100", "")
 
-                metadata_info = await metadata(clean_filename(title), int(channel), msg_id)
-                if metadata_info is None:
+                metadata_result = await metadata(clean_filename(title), int(channel), msg_id)
+                if not metadata_result:
                     LOGGER.warning(f"Metadata failed for file: {title} (ID: {msg_id})")
                     return
 
+                metadata_list = metadata_result if isinstance(metadata_result, list) else [metadata_result]
+
                 title = remove_urls(title)
-                if metadata_info.get('group_key'):
+                if metadata_list[0].get('group_key'):
                     title = strip_part_suffix(title)
                 if not title.endswith(('.mkv', '.mp4')):
                     title += '.mkv'
@@ -77,7 +79,8 @@ async def file_receive_handler(client: Client, message: Message):
                         new_caption=new_caption
                     ))
 
-                await file_queue.put((metadata_info, int(channel), msg_id, size, raw_size, title, message.date))
+                for info in metadata_list:
+                    await file_queue.put((info, int(channel), msg_id, size, raw_size, title, message.date))
             else:
                 await message.reply_text("> Not supported")
         except FloodWait as e:
@@ -111,18 +114,21 @@ async def file_edited_handler(client: Client, message: Message):
                     
                     await db.remove_media_part(int(channel), msg_id)
 
-                    metadata_info = await metadata(clean_filename(title), int(channel), msg_id, override_id=override_id)
-                    if metadata_info is None:
+                    metadata_result = await metadata(clean_filename(title), int(channel), msg_id, override_id=override_id)
+                    if not metadata_result:
                         LOGGER.warning(f"Metadata failed for edited file: {title} (ID: {msg_id})")
                         return
 
+                    metadata_list = metadata_result if isinstance(metadata_result, list) else [metadata_result]
+
                     title = remove_urls(title)
-                    if metadata_info.get('group_key'):
+                    if metadata_list[0].get('group_key'):
                         title = strip_part_suffix(title)
                     if not title.endswith(('.mkv', '.mp4')):
                         title += '.mkv'
 
-                    await file_queue.put((metadata_info, int(channel), msg_id, size, raw_size, title, message.date))
+                    for info in metadata_list:
+                        await file_queue.put((info, int(channel), msg_id, size, raw_size, title, message.date))
             else:
                 pass
         except Exception as e:
