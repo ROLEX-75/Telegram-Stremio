@@ -84,9 +84,7 @@ def _parse_and_validate(filename: str, expected_title: str, season: Optional[int
     except Exception:
         return None
 
-    if "excess" in parsed and any("combined" in item.lower() for item in parsed["excess"]):
-        LOGGER.info(f"Skipping {filename}: contains 'combined'")
-        return None
+
 
     if not _matches_episode(parsed, season, episode):
         return None

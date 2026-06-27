@@ -61,10 +61,21 @@ async def _cached_call(store: dict, key, ns: str, producer):
 
 _MULTIPART_RE = re.compile(r"(?:part|cd|disc|disk)[s._-]*\d+(?=\.\w+$)", re.IGNORECASE)
 
-#----- Combined files share one "Season N Combined" entry per real season, filed in
-#----- the Specials folder (season 0).
+# Combined episode files (e.g. "S01 [E04-06]" or "S01 Combined") are grouped under a special season.
 COMBINED_SEASON = 0
-COMBINED_EPISODE_BASE = 1000
+
+
+# Re-file a combined entry under the special season with a descriptive title.
+def _apply_combined_override(payload: dict, combined: dict) -> None:
+    season, start, end = combined["season"], combined["start"], combined["end"]
+    payload["season_number"] = COMBINED_SEASON
+    if start is None:
+        payload["episode_number"] = season * 1000
+        payload["episode_title"] = f"S{season:02d} Complete (Combined)"
+    else:
+        payload["episode_number"] = season * 1000 + start
+        payload["episode_title"] = f"S{season:02d} E{start:02d}-E{end:02d} (Combined)"
+
 
 _tmdb_client: aioTMDb | None = None
 _tmdb_client_key: str | None = None
@@ -288,15 +299,7 @@ def parse_media_name(name: str) -> dict:
     return parsed
 
 
-def _apply_combined_override(payload: dict, combined: dict) -> None:
-    season, start, end = combined["season"], combined["start"], combined["end"]
-    payload["season_number"] = COMBINED_SEASON
-    payload["episode_number"] = COMBINED_EPISODE_BASE + season
-    payload["episode_title"] = f"Season {season} Combined"
-    label = "Full" if start is None else f"E{start:02d}-E{end:02d}"
-    payload["quality"] = f"{payload.get('quality') or 'HD'} {label}"
-    if not payload.get("episode_backdrop"):
-        payload["episode_backdrop"] = payload.get("backdrop") or payload.get("poster") or ""
+
 
 
 #----- ── Search (Cinemeta / TMDb) ────────────────────────────────────────────────
@@ -782,6 +785,9 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
         LOGGER.info(f"Skipping {filename}: contains 'combined'")
         return None
 
+    split_info = None if combined else parse_split_info(filename)
+    part_number = split_info[1] if split_info else None
+
     title = parsed.get("title")
     season = parsed.get("season")
     episode = parsed.get("episode")
@@ -794,8 +800,6 @@ async def metadata(filename: str, channel: int, msg_id, override_id: str = None)
         LOGGER.warning(f"Invalid season/episode format for {filename}: {parsed}")
         return None
     elif season and not episode:
-        #----- Season pack with no episode number -> whole-season combined.
-        combined = {"season": season, "start": None, "end": None}
         episode = 1
     if not quality:
         LOGGER.warning(f"Skipping {filename}: No resolution (parsed={parsed})")
