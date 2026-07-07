@@ -19,8 +19,11 @@ async def resolve_virtual_parts(
     for idx, p in enumerate(parts_payload):
         chat_id = int(f"-100{p['chat_id']}")
         msg_id = int(p["msg_id"])
-        file_id = await streamer.get_file_properties(chat_id=chat_id, message_id=msg_id)
-        size = file_id.file_size
+        try:
+            file_id = await streamer.get_file_properties(chat_id=chat_id, message_id=msg_id)
+        except Exception:
+            return [], 0
+        size = file_id.file_size or 0
         parts.append({
             "index": idx,
             "chat_id": chat_id,

@@ -15,6 +15,7 @@ from Backend.helper.encrypt import decode_string
 from Backend.helper.utils import track_usage
 from Backend.helper.custom_dl import ByteStreamer, ACTIVE_STREAMS, RECENT_STREAMS
 from Backend.helper.virtual_dl import resolve_virtual_parts, virtual_stream_generator
+from Backend.helper.exceptions import FIleNotFound
 from Backend.pyrofork.bot import work_loads, multi_clients, client_dc_map, client_failures, client_avg_mbps, Userbot, USERBOT_CLIENT_INDEX
 from Backend.fastapi.security.tokens import verify_token
 
@@ -131,7 +132,10 @@ async def media_streamer(request: Request, chat_id: int, msg_id: int, token: str
     if tg_client not in _streamer_by_client:
         _streamer_by_client[tg_client] = ByteStreamer(tg_client, index)
     streamer: ByteStreamer = _streamer_by_client[tg_client]
-    file_id = await streamer.get_file_properties(chat_id=chat_id, message_id=msg_id)
+    try:
+        file_id = await streamer.get_file_properties(chat_id=chat_id, message_id=msg_id)
+    except FIleNotFound:
+        raise HTTPException(status_code=404, detail="Media not found")
     target_dc = file_id.dc_id
     file_size = file_id.file_size
     range_header = request.headers.get("Range", "")
