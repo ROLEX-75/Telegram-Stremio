@@ -4,7 +4,7 @@ import asyncio
 import secrets
 import mimetypes
 from typing import Dict
-from urllib.parse import unquote
+from urllib.parse import unquote, quote
 from math import ceil
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import Response as PlainResponse, StreamingResponse, JSONResponse
@@ -219,7 +219,7 @@ async def media_streamer(request: Request, chat_id: int, msg_id: int, token: str
         headers = {
             "Content-Type": mime_type,
             "Content-Length": str(req_length),
-            "Content-Disposition": f'inline; filename="{file_name}"',
+            "Content-Disposition": f"inline; filename*=utf-8''{quote(file_name)}",
             "Accept-Ranges": "bytes",
             "Cache-Control": "public, max-age=3600",
             "Access-Control-Allow-Origin": "*",
@@ -236,7 +236,7 @@ async def media_streamer(request: Request, chat_id: int, msg_id: int, token: str
 
     headers = {
         "Content-Type": mime_type,
-        "Content-Disposition": f'inline; filename="{file_name}"',
+        "Content-Disposition": f"inline; filename*=utf-8''{quote(file_name)}",
         "Accept-Ranges": "bytes",
         "Content-Length": str(req_length),
         "Cache-Control": "public, max-age=3600",
@@ -303,7 +303,7 @@ async def virtual_media_streamer(request: Request, parts_payload: list, token: s
 
     common_headers = {
         "Content-Type": mime_type,
-        "Content-Disposition": f'inline; filename="{file_name}"',
+        "Content-Disposition": f"inline; filename*=utf-8''{quote(file_name)}",
         "Accept-Ranges": "bytes",
         "Content-Length": str(req_length),
         "Cache-Control": "public, max-age=3600",
@@ -386,7 +386,7 @@ async def global_media_streamer(request: Request, chat_id: int, msg_id: int, tok
 
     headers = {
         "Content-Type": mime_type,
-        "Content-Disposition": f'inline; filename="{file_name}"',
+        "Content-Disposition": f"inline; filename*=utf-8''{quote(file_name)}",
         "Accept-Ranges": "bytes",
         "Content-Length": str(req_length),
         "Cache-Control": "public, max-age=3600",
